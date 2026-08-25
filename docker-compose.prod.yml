@@ -1,0 +1,94 @@
+# Production compose file: identical shape to docker-compose.yml but runs
+# the prebuilt image from GHCR instead of building on the server - the VM
+# has 1GB RAM and shouldn't be compiling the frontend. Build + push happens
+# via the manual CI run (workflow_dispatch on .github/workflows/ci.yml).
+#
+#   docker compose -f docker-compose.prod.yml up -d
+
+# Docker's default json-file logging never rotates - on a small VM the
+# container logs would slowly eat the disk. 30MB total per service, capped
+# here (per-service, in git) rather than in a daemon.json the repo can't see.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  backend:
+    image: ghcr.io/600kgs/btu-backend:latest
+    logging: *default-logging
+    ports:
+      - "127.0.0.1:8001:8001"   # same target Caddy already reverse-proxies to
+    volumes:
+      - ./backend/uploads:/app/uploads
+    environment:
+      - MARKETPLACE_FRONTEND_DIR=frontend/dist
+      # Trust X-Forwarded-For from whatever connects to us. Only Caddy can:
+      # the port is bound to the host's 127.0.0.1 above, and Caddy itself
+      # sends a single trusted value (see deploy/Caddyfile's header_up).
+      # Without this, uvicorn's --proxy-headers ignores the header entirely -
+      # inside the container the peer is the Docker bridge gateway, not
+      # 127.0.0.1 (uvicorn's default trust list) - and every visitor shares
+      # one "IP", collapsing all IP-keyed rate limits into a single bucket.
+      - FORWARDED_ALLOW_IPS=*
+    env_file: .env
+    depends_on: [redis]
+    restart: unless-stopped
+    mem_limit: 512m
+    cpus: 1.0
+    # Neon's pooler hostname resolves to both A and AAAA records, and Docker's
+    # bridge network gives the container just enough link-local IPv6 to pass
+    # glibc's AI_ADDRCONFIG check without any real IPv6 route out. When DNS
+    # happens to return an AAAA record first, psycopg tries it and dies with
+    # "Network is unreachable" instead of falling back to IPv4 - killing DB
+    # connectivity intermittently. Disabling IPv6 on the container makes
+    # AI_ADDRCONFIG exclude AAAA answers, so resolution only ever returns
+    # working IPv4 addresses.
+    sysctls:
+      - net.ipv6.conf.all.disable_ipv6=1
+    healthcheck:
+      # /health/live only checks the process is up, not the DB - see the
+      # note on the /health route in backend/routers/pages.py for why.
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health/live', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  worker:
+    image: ghcr.io/600kgs/btu-backend:latest
+    logging: *default-logging
+    command: ["rq", "worker", "-u", "redis://redis:6379/0"]
+    env_file: .env
+    depends_on: [redis]
+    restart: unless-stopped
+    mem_limit: 256m
+    cpus: 0.5
+    sysctls:
+      - net.ipv6.conf.all.disable_ipv6=1
+    healthcheck:
+      test: ["CMD", "python", "-c", "from redis_client import redis_client; redis_client.ping()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    logging: *default-logging
+    volumes:
+      - redis-data:/data
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "128mb", "--maxmemory-policy", "allkeys-lru"]
+    restart: unless-stopped
+    mem_limit: 192m
+    cpus: 0.5
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  redis-data:

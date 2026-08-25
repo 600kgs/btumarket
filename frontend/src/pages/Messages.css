@@ -1,0 +1,408 @@
+/* ---------- Chat layout (page-specific, keeps style.css untouched) ----------
+   Ported verbatim from the old messages.html's inline <style> block. */
+
+/* App-like locked layout while the chat page is mounted. The body is fixed
+   to the visible viewport rectangle that JS measures (--vvh height at
+   --vvtop), so the compose bar sits on the keyboard instead of behind it.
+   position: fixed is what makes --vvtop work: on iOS and its in-app
+   webviews the keyboard scrolls the visual viewport inside a layout
+   viewport that never changes size, and a fixed element offset by
+   visualViewport.offsetTop is the only way to stay glued to the part the
+   user can see. The panel then flex-fills whatever is left under the
+   header, with no pixel math tied to the header's own height. */
+body.chat-page {
+    position: fixed;
+    top: var(--vvtop, 0px);
+    left: 0;
+    right: 0;
+    height: 100vh;
+    height: 100dvh;
+    height: var(--vvh, 100dvh);
+    /* style.css sets min-height: 100vh on body; a floor larger than height
+       would win and push the compose bar below the visible area. */
+    min-height: 0;
+    overflow: hidden;
+}
+
+body.chat-page #root {
+    height: 100%;
+    min-height: 0;
+}
+
+body.chat-page .site-footer {
+    display: none;
+}
+
+.chat-shell {
+    width: 100%;
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 18px 20px;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+}
+
+@media (max-width: 720px) {
+    .chat-shell {
+        padding: 8px 8px 10px;
+    }
+
+    /* Give the chat every pixel on phones - the promo strip and category
+       row are browsing furniture, not chat furniture. */
+    body.chat-page .promo-strip,
+    body.chat-page .nav-catrow {
+        display: none;
+    }
+}
+
+.chat-panel {
+    flex: 1;
+    min-height: 0;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 2px 14px rgba(20,20,30,0.05);
+    overflow: hidden;
+}
+
+.convo-list {
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-height: 0;
+}
+
+.convo-list-header {
+    padding: 16px 18px 12px;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 17px;
+    color: var(--ink);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: var(--surface);
+}
+
+.convo-item {
+    width: 100%;
+    min-width: 0;
+    text-align: left;
+    background: none;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    padding: 13px 18px;
+    cursor: pointer;
+    display: flex;
+    gap: 11px;
+    align-items: flex-start;
+}
+
+.convo-item:hover { background: var(--paper); }
+.convo-item.active { background: var(--accent-tint); }
+
+.convo-avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: var(--ink);
+    color: white;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.convo-text { min-width: 0; flex: 1; }
+
+.convo-peer {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--ink);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+}
+
+.convo-peer-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.convo-listing {
+    display: block;
+    font-size: 12px;
+    color: var(--accent-dark);
+    font-weight: 600;
+    margin: 1px 0 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.convo-preview {
+    display: block;
+    font-size: 13px;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.convo-unread {
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 9px;
+    background: var(--accent);
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 18px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.convo-empty {
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.convo-empty a { color: var(--accent); font-weight: 600; }
+
+.thread {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+}
+
+.thread-header {
+    padding: 13px 18px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.thread-back {
+    display: none;
+    background: none;
+    border: none;
+    font-size: 20px;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 2px 6px;
+}
+
+.thread-title { min-width: 0; flex: 1; }
+
+/* Quiet outline button, pushed to the far end of the header by the title's
+   flex:1. Never the loud red - blocking someone isn't the primary action. */
+.thread-block-btn {
+    flex-shrink: 0;
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 999px;
+    padding: 6px 13px;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+}
+
+.thread-block-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+/* Quiet icon button; turns red on hover to signal a destructive action. */
+.thread-delete-btn {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+}
+
+.thread-delete-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.thread-peer {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.thread-listing-link {
+    font-size: 12.5px;
+    color: var(--accent-dark);
+    text-decoration: none;
+    font-weight: 600;
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.thread-listing-link:hover { text-decoration: underline; }
+
+/* A deleted listing: same slot as the link but quiet and non-clickable. */
+.thread-listing-deleted {
+    font-size: 12.5px;
+    color: var(--muted);
+    font-style: italic;
+    font-weight: 500;
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.thread-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: var(--paper);
+}
+
+.bubble {
+    max-width: 72%;
+    padding: 9px 13px;
+    border-radius: 14px;
+    font-size: 14px;
+    line-height: 1.45;
+    flex-shrink: 0;
+}
+
+.bubble-body {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.bubble.mine {
+    align-self: flex-end;
+    background: var(--accent);
+    color: white;
+    border-bottom-right-radius: 4px;
+}
+
+.bubble.theirs {
+    align-self: flex-start;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--ink-soft);
+    border-bottom-left-radius: 4px;
+}
+
+.bubble-time {
+    font-size: 10.5px;
+    opacity: 0.65;
+    margin-top: 3px;
+    text-align: right;
+}
+
+.thread-placeholder {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    font-size: 14.5px;
+    background: var(--paper);
+    padding: 20px;
+    text-align: center;
+}
+
+.compose {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    padding: 12px 14px;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+}
+
+.compose textarea {
+    flex: 1;
+    resize: none;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--paper);
+    padding: 10px 12px;
+    font-size: 14px;
+    min-height: 44px;
+    max-height: 120px;
+    overflow-y: auto;
+    line-height: 1.4;
+}
+
+.compose button {
+    height: 44px;
+    padding: 0 22px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.compose button:hover { background: var(--accent-dark); }
+.compose button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* Mobile: one pane at a time */
+@media (max-width: 720px) {
+    .chat-panel {
+        grid-template-columns: 1fr;
+    }
+    .convo-list { border-right: none; }
+    .chat-panel.thread-open .convo-list { display: none; }
+    .chat-panel:not(.thread-open) .thread { display: none; }
+    .thread-back { display: block; }
+    .bubble { max-width: 85%; }
+}
+
+/* When the chat height is a guess (an in-app browser that reports no
+   viewport change), it errs on the safe side and can leave space between
+   the composer and the keyboard. The body's background paints the whole
+   canvas, so matching it to the composer makes that space read as part of
+   the chat instead of a gap under it. */
+body.chat-page.kb-guess {
+    background: var(--surface);
+}
+
+body.chat-page.kb-guess .chat-shell {
+    padding-bottom: 0;
+}

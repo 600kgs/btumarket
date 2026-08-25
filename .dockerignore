@@ -1,0 +1,12 @@
+# Build context is the repo root (see docker-compose.yml) - keep it small
+# and make sure nothing stateful/local ever ends up baked into an image.
+.git/
+frontend/node_modules/
+frontend/dist/
+backend/uploads/
+backend/marketplace.db
+backend/__pycache__/
+backend/alembic/versions/__pycache__/
+**/__pycache__/
+*.pyc
+.env

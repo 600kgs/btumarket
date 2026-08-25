@@ -1,0 +1,15 @@
+# Server-only data - must NEVER be in the repo
+marketplace.db
+# any local database file, including the throwaway ones the tests use
+backend/*.db
+uploads/
+backups/
+.env
+
+# Local machine junk
+venv/
+__pycache__/
+*.pyc
+backup.log
+.DS_Store
+Thumbs.db

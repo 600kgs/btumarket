@@ -1,0 +1,90 @@
+services:
+  backend:
+    build:
+      context: .                       # repo root, not backend/ - the multi-stage
+      dockerfile: backend/Dockerfile    # build needs to see frontend/ too
+    ports:
+      - "127.0.0.1:8001:8001"   # same target Caddy already reverse-proxies to
+    volumes:
+      # uploads/ already exists on the host (moved here in Phase 0) -
+      # bind-mounting it keeps real data outside the image, so rebuilding
+      # the image never touches it. (marketplace.db is NOT mounted here as
+      # of Phase 2 - Postgres/Neon is the database now; single-FILE bind
+      # mounts are also flaky on Docker Desktop for Windows, which cost us
+      # the local dev SQLite file once already - mount directories, not
+      # individual files, if SQLite's ever needed here again.)
+      - ./backend/uploads:/app/uploads
+    environment:
+      # The built React app is baked into the image at /app/frontend/dist
+      # (see backend/Dockerfile) - a different relative path than bare-metal
+      # dev's ../frontend/dist sibling directory, so this can't share the
+      # config.py default. See config.py's FRONTEND_DIR comment.
+      - MARKETPLACE_FRONTEND_DIR=frontend/dist
+    env_file: .env
+    depends_on: [redis]
+    restart: unless-stopped
+    # Phase 5 measured ~95MB under load - 512m leaves generous headroom for
+    # traffic spikes/image processing while still capping a runaway leak
+    # from being the thing that OOMs the whole VM. `mem_limit`/`cpus` (not
+    # `deploy.resources.limits`) because plain `docker compose up` silently
+    # ignores the `deploy:` key outside Swarm mode - it would look right in
+    # the file and do nothing.
+    mem_limit: 512m
+    cpus: 1.0
+    healthcheck:
+      # No curl in python:3.12-slim by default - reusing urllib avoids
+      # adding a package just for this.
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # Runs the same image as backend, just with a different command - picks up
+  # jobs queued by send_email_async() (see main.py) so email sending never
+  # blocks a request on SMTP.
+  worker:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: ["rq", "worker", "-u", "redis://redis:6379/0"]
+    env_file: .env
+    depends_on: [redis]
+    restart: unless-stopped
+    mem_limit: 256m
+    cpus: 0.5
+    healthcheck:
+      # The worker has no HTTP endpoint of its own (unlike backend) - the
+      # thing actually worth checking is whether it can still reach Redis,
+      # reusing the app's own redis_client rather than an unrelated check.
+      test: ["CMD", "python", "-c", "from redis_client import redis_client; redis_client.ping()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis-data:/data
+    # --appendonly gives the RQ job queue durability across a restart (we
+    # don't want to silently drop a queued verification email); the rate
+    # limiter/dedupe keys don't need that, losing them on restart already
+    # matched the old in-memory version's behavior. --maxmemory + the LRU
+    # policy is a safety valve on a RAM-constrained VM - caps Redis from
+    # ever being the thing that OOMs the box.
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "128mb", "--maxmemory-policy", "allkeys-lru"]
+    restart: unless-stopped
+    # A bit above Redis's own --maxmemory 128mb, since that cap only bounds
+    # the dataset, not the process's own overhead.
+    mem_limit: 192m
+    cpus: 0.5
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  redis-data:

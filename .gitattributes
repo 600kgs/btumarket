@@ -1,0 +1,16 @@
+# Let Git normalize text files sensibly
+* text=auto
+
+# Files that run on the Linux server MUST have Linux (LF) line endings,
+# or bash fails with "bad interpreter" errors
+*.sh text eol=lf
+*.py text eol=lf
+
+# Windows-only script keeps Windows endings
+*.ps1 text eol=crlf
+
+# Never touch binary files
+*.png binary
+*.jpg binary
+*.ico binary
+*.db binary
