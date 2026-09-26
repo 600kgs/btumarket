@@ -1,0 +1,18 @@
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+sqlalchemy==2.0.36
+pydantic[email]==2.10.4
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+bcrypt==4.0.1
+python-multipart==0.0.20
+pillow==11.1.0
+google-auth==2.36.0
+requests==2.32.3
+# Postgres driver (Phase 2 of the migration plan) + schema migrations.
+psycopg[binary]==3.2.3
+alembic==1.14.0
+# Phase 3: rate limiter/dedupe caches + async email queue.
+redis==5.2.1
+rq==2.1.0
+sentry-sdk[fastapi]==2.19.2

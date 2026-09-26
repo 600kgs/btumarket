@@ -1,0 +1,329 @@
+/* Styles for the redesigned listing detail (two-column), seller profile
+   page, and My Listings tabs. Loaded after style.css (see main.tsx) so
+   these can override the older single-column detail rules. */
+
+/* ---------- listing detail: two-column layout ---------- */
+
+.detail-two-col {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(300px, 1fr);
+    gap: 0;
+    align-items: start;
+}
+
+.detail-media {
+    min-width: 0;
+    border-right: 1px solid var(--border);
+}
+
+.detail-desc-block {
+    padding: 20px 24px 26px;
+    border-top: 1px solid var(--border);
+}
+
+.detail-desc-block h2 {
+    font-size: 16px;
+    margin-bottom: 10px;
+}
+
+.detail-side {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+/* Title-first: the item name leads (largest element), the price sits
+   prominently just below it. */
+.detail-side h1 {
+    font-size: 27px;
+    line-height: 1.15;
+    font-family: var(--font-display);
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    overflow-wrap: anywhere;
+    margin: 0;
+}
+
+.detail-price {
+    font-size: 23px;
+    font-weight: 800;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+}
+
+.detail-meta-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    font-size: 12.5px;
+    color: var(--muted);
+}
+
+.seller-row {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 11px 13px;
+    text-decoration: none;
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.seller-row:hover {
+    background: var(--paper);
+    border-color: var(--muted);
+}
+
+.seller-row-avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: var(--verify-bg);
+    color: var(--verify);
+    font-weight: 700;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.seller-row-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.seller-row-name {
+    font-weight: 600;
+    color: var(--ink);
+    font-size: 14px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.seller-row-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.share-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.btn-share {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--ink-soft);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 15px;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+}
+
+.btn-share:hover {
+    border-color: var(--muted);
+    color: var(--ink);
+}
+
+.safety-note {
+    background: #fffbea;
+    border: 1px solid #f0e2b6;
+    border-radius: var(--radius-sm);
+    font-size: 12.5px;
+}
+
+.similar-section {
+    margin-top: var(--sp-6);
+    padding-bottom: var(--sp-6);
+}
+
+/* Fixed 2 columns (not the general .listings-grid's auto-fill) so 4 cards
+   are always exactly 2 full rows - no orphaned card, at any width, without
+   having to guess how many 235px+ cards fit in this particular column.
+   This file loads after style.css (see main.tsx), so plain cascade order
+   is enough to override .listings-grid's own column rule. */
+.similar-grid {
+    grid-template-columns: repeat(2, 1fr);
+}
+
+.card-seller-link {
+    cursor: pointer;
+}
+
+.card-seller-link:hover {
+    color: var(--accent);
+    text-decoration: underline;
+}
+
+@media (max-width: 860px) {
+    .detail-two-col {
+        grid-template-columns: 1fr;
+    }
+
+    .detail-media {
+        border-right: none;
+    }
+
+    .detail-side {
+        border-top: 1px solid var(--border);
+    }
+}
+
+/* ---------- seller profile page ---------- */
+
+.seller-header {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card);
+    padding: 24px 28px;
+    margin: 26px 0 22px;
+}
+
+.seller-avatar {
+    width: 62px;
+    height: 62px;
+    border-radius: 50%;
+    background: var(--verify-bg);
+    color: var(--verify);
+    font-weight: 800;
+    font-size: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.seller-header h1 {
+    font-size: 23px;
+    margin: 0 0 4px;
+}
+
+.seller-sub {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--muted);
+    flex-wrap: wrap;
+    margin: 0;
+}
+
+.seller-sub .trust-mark {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--verify-bg);
+    color: var(--verify);
+    border-radius: 999px;
+    padding: 3px 10px 3px 7px;
+    font-weight: 600;
+    font-size: 12px;
+}
+
+.seller-grid {
+    padding-bottom: 40px;
+}
+
+/* ---------- my listings tabs ---------- */
+
+.page-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin: 4px 0 20px;
+}
+
+.page-head h2 {
+    margin: 0;
+}
+
+.tab-row {
+    display: flex;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 3px;
+    gap: 3px;
+}
+
+.tab-btn {
+    border: none;
+    background: none;
+    color: var(--muted);
+    font-size: 13.5px;
+    font-weight: 600;
+    padding: 7px 16px;
+    border-radius: 999px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    transition: background 0.15s, color 0.15s;
+}
+
+.tab-btn.active {
+    background: var(--ink);
+    color: white;
+}
+
+.tab-count {
+    background: rgba(127, 127, 127, 0.16);
+    border-radius: 999px;
+    font-size: 11.5px;
+    padding: 1px 7px;
+    font-variant-numeric: tabular-nums;
+}
+
+.tab-btn.active .tab-count {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.tab-empty {
+    color: var(--muted);
+    padding: 30px 0;
+}
+
+/* ---------- detail sidebar: uniform action buttons ---------- */
+
+.detail-side .listing-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 2px 0;
+}
+
+.detail-side .listing-actions > button {
+    width: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 13px 16px;
+    font-size: 14.5px;
+    border-radius: 10px;
+    /* The old row layout gave these flex:1 - in a column that inflates
+       them vertically instead. */
+    flex: none;
+}

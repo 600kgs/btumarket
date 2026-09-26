@@ -1,0 +1,139 @@
+# Production compose file: identical shape to docker-compose.yml but runs
+# the prebuilt image from GHCR instead of building on the server - the VM
+# has 1GB RAM and shouldn't be compiling the frontend. Build + push happens
+# via the manual CI run (workflow_dispatch on .github/workflows/ci.yml).
+#
+#   docker compose -f docker-compose.prod.yml up -d
+
+# Docker's default json-file logging never rotates - on a small VM the
+# container logs would slowly eat the disk. 30MB total per service, capped
+# here (per-service, in git) rather than in a daemon.json the repo can't see.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  backend:
+    image: ghcr.io/600kgs/btu-backend:latest
+    logging: *default-logging
+    ports:
+      - "127.0.0.1:8001:8001"   # same target Caddy already reverse-proxies to
+    volumes:
+      - ./backend/uploads:/app/uploads
+    environment:
+      - MARKETPLACE_FRONTEND_DIR=frontend/dist
+      # Trust X-Forwarded-For from whatever connects to us. Only Caddy can:
+      # the port is bound to the host's 127.0.0.1 above, and Caddy itself
+      # sends a single trusted value (see deploy/Caddyfile's header_up).
+      # Without this, uvicorn's --proxy-headers ignores the header entirely -
+      # inside the container the peer is the Docker bridge gateway, not
+      # 127.0.0.1 (uvicorn's default trust list) - and every visitor shares
+      # one "IP", collapsing all IP-keyed rate limits into a single bucket.
+      - FORWARDED_ALLOW_IPS=*
+    env_file: .env
+    depends_on:
+      redis:
+        condition: service_started
+      # Waits for pg_isready, not just for the container to exist - Postgres
+      # needs a few seconds after start before it accepts connections.
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    mem_limit: 512m
+    cpus: 1.0
+    # Originally for Neon, kept because any outbound hostname can hit this:
+    # Neon's pooler resolved to both A and AAAA records, and Docker's
+    # bridge network gives the container just enough link-local IPv6 to pass
+    # glibc's AI_ADDRCONFIG check without any real IPv6 route out. When DNS
+    # happens to return an AAAA record first, psycopg tries it and dies with
+    # "Network is unreachable" instead of falling back to IPv4 - killing DB
+    # connectivity intermittently. Disabling IPv6 on the container makes
+    # AI_ADDRCONFIG exclude AAAA answers, so resolution only ever returns
+    # working IPv4 addresses.
+    sysctls:
+      - net.ipv6.conf.all.disable_ipv6=1
+    healthcheck:
+      # /health/live only checks the process is up, not the DB - see the
+      # note on the /health route in backend/routers/pages.py for why.
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health/live', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  worker:
+    image: ghcr.io/600kgs/btu-backend:latest
+    logging: *default-logging
+    command: ["rq", "worker", "-u", "redis://redis:6379/0"]
+    env_file: .env
+    depends_on:
+      redis:
+        condition: service_started
+      # Waits for pg_isready, not just for the container to exist - Postgres
+      # needs a few seconds after start before it accepts connections.
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    mem_limit: 256m
+    cpus: 0.5
+    sysctls:
+      - net.ipv6.conf.all.disable_ipv6=1
+    healthcheck:
+      test: ["CMD", "python", "-c", "from redis_client import redis_client; redis_client.ping()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    logging: *default-logging
+    volumes:
+      - redis-data:/data
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "128mb", "--maxmemory-policy", "allkeys-lru"]
+    restart: unless-stopped
+    mem_limit: 192m
+    cpus: 0.5
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  # The database. Moved here from Neon's free tier on 2026-09-24 after its
+  # monthly compute-hour quota ran out and took the site down. A database
+  # this small (a few MB) doesn't justify a hosted service with a quota.
+  postgres:
+    image: postgres:18-alpine
+    logging: *default-logging
+    # No ports: on purpose. backend and worker reach it as "postgres" on the
+    # compose network; nothing outside Docker can.
+    environment:
+      - POSTGRES_USER=btu
+      - POSTGRES_DB=btumarket
+      # Filled in by compose from the .env next to this file. Listed singly
+      # rather than env_file: .env so the database container doesn't also
+      # receive the app's other secrets.
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      # Postgres 18 images keep data under /var/lib/postgresql (not .../data).
+      - pg-data:/var/lib/postgresql
+    # Sized for a 1GB VM: the defaults (128MB shared_buffers, 100
+    # connections) assume a dedicated server.
+    command: ["postgres", "-c", "shared_buffers=32MB", "-c", "max_connections=20", "-c", "work_mem=2MB"]
+    restart: unless-stopped
+    mem_limit: 192m
+    cpus: 0.5
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "btu", "-d", "btumarket"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  redis-data:
+  pg-data:
